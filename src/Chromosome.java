@@ -1,4 +1,7 @@
-import java.util.Random;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Project: SAW Genetic Algorithms
@@ -8,27 +11,19 @@ import java.util.Random;
  */
 public class Chromosome {
 
-    public static final int length = 4 * 3 * 3;
+    public static final int N_NEIGHBOURS = 4;
+    public static final int N_VALUES = 12;
+    public static final int N_COLORS = 3;
+    public static final int length = N_NEIGHBOURS * N_VALUES;
     public static final int left = 0;
-    public static final int right = 2;
-    public static final int minMatches = 3;
+    public static final int right = N_VALUES - 1;
+    public static final int minMatches = 2;
     public static final int steps = 10;
-    private static final int[][] perfectTree = {{0, 0, 2, 2, 2, 0, 0},
-            {0, 2, 2, 1, 2, 2, 0},
-            {2, 1, 2, 1, 2, 1, 2},
-            {0, 2, 1, 1, 1, 2, 0},
-            {0, 0, 0, 1, 0, 0, 0},
-            {0, 0, 0, 1, 0, 0, 0},
-            {0, 0, 0, 1, 0, 0, 0}};
-    private static final int[][] iniTree = {{0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 0, 0, 0, 0},
-            {0, 0, 0, 1, 0, 0, 0}};
+    public static final int[] coloringScheme = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2};
+    private int[][] perfectTree;
+    private int[][] iniTree;
     private int[] genes = new int[length];                                       //should be of length length for this task
-    private int[][] env = new int[7][7];
+    private int[][] env;
 
     public Chromosome(int[] genes) throws Exception {
         for (int gene :
@@ -40,27 +35,41 @@ public class Chromosome {
             this.genes = genes;
         else
             throw new Exception("Genes string should be of length " + length + " for this task");
-
+        perfectTree = parseCSV("perfectTree7x7.csv", ",");
+        iniTree = parseCSV("iniTree7x7.csv", ",");
+        env = new int[perfectTree.length][perfectTree[0].length];
     }
 
-    public Chromosome() {
+    public Chromosome() throws Exception {
+        this(getRandomGenes());
+    }
+
+    private static int[][] parseCSV(String filename, String delimiter) throws FileNotFoundException {
+        Scanner scanner = new Scanner(new File(filename));
+        List<List<Integer>> parsed = new ArrayList<>();
+        while (scanner.hasNextLine()) {
+            parsed.add(Arrays.stream(scanner.nextLine().split(delimiter)).map(Integer::parseInt).collect(Collectors.toList()));
+        }
+        int arr[][] = new int[parsed.size()][parsed.size()];
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = 0; j < arr[0].length; j++) {
+                arr[i][j] = parsed.get(i).get(j);
+            }
+        }
+        return arr;
+    }
+
+    private static int[] getRandomGenes() {
         Random random = new Random();
+        int genes[] = new int[length];
         for (int i = 0; i < length; i++) {
             genes[i] = random.nextInt(right - left + 1) + left;
         }
+        return genes;
     }
 
-    public static double getMaxFitness() {
-        double fitness = 0;
-        for (int i = 0; i < perfectTree.length; i++) {
-            for (int j = 0; j < perfectTree[i].length; j++) {
-                if (perfectTree[i][j] != 0)
-                    fitness += 1;
-                else
-                    fitness += 0.6;
-            }
-        }
-        return fitness;
+    public double getMaxFitness() {
+        return getMaxDistance();
     }
 
     public int[][] getEnv() {
@@ -96,13 +105,23 @@ public class Chromosome {
         env = nextEnv;
     }
 
+    private void color() {
+        int[][] nextEnv = new int[env.length][env[0].length];
+        for (int i = 0; i < env.length; i++) {
+            for (int j = 0; j < env[i].length; j++) {
+                nextEnv[i][j] = coloringScheme[env[i][j]];
+            }
+        }
+        env = nextEnv;
+    }
+
     private int getAdvancedBlockValue(int x, int y) {
         int value = getBlock(x, y);
         int[] neighbours = getNeighbours(x, y);
-        for (int i = 0; i < 3; i++) {
-            int offset = value * 12 + 4 * i;
+        for (int i = 0; i < N_VALUES; i++) {
+            int offset = N_NEIGHBOURS * i;
             int matches = 0;
-            for (int j = 0; j < 4; j++) {
+            for (int j = 0; j < N_NEIGHBOURS; j++) {
                 if (genes[offset + j] == neighbours[j]) {
                     matches++;
                 }
@@ -118,22 +137,23 @@ public class Chromosome {
         env = iniTree;
     }
 
+    public double getMaxDistance() {
+        return env.length * env[0].length * Math.pow(2, 2);
+    }
+
     public double getFitness() {
-        double fitness = 0;
+        double distance = 0;
         initEnv();
         for (int i = 0; i < steps; i++) {
             advance();
         }
+        color();
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
-                if (env[i][j] == perfectTree[i][j])
-                    if (env[i][j] != 0)
-                        fitness += 1;
-                    else
-                        fitness += 0.6;
+                distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
             }
         }
-        return fitness;
+        return getMaxDistance() - distance;
     }
 
     Chromosome getMutated(double p) {
