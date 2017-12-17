@@ -12,14 +12,14 @@ import java.util.stream.Collectors;
 public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
-    public static final int N_VALUES = 12;
+    public static final int N_VALUES = 9;
     public static final int N_COLORS = 3;
-    public static final int length = N_NEIGHBOURS * N_VALUES;
+    public static final int length = (int) Math.pow(N_VALUES, N_NEIGHBOURS);
     public static final int left = 0;
     public static final int right = N_VALUES - 1;
     public static final int minMatches = 2;
     public static final int steps = 10;
-    public static final int[] coloringScheme = {0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2};
+    public static final int[] coloringScheme = {0, 0, 0, 1, 1, 1, 2, 2, 2};
     private int[][] perfectTree;
     private int[][] iniTree;
     private int[] genes = new int[length];                                       //should be of length length for this task
@@ -116,21 +116,12 @@ public class Chromosome {
     }
 
     private int getAdvancedBlockValue(int x, int y) {
-        int value = getBlock(x, y);
         int[] neighbours = getNeighbours(x, y);
-        for (int i = 0; i < N_VALUES; i++) {
-            int offset = N_NEIGHBOURS * i;
-            int matches = 0;
-            for (int j = 0; j < N_NEIGHBOURS; j++) {
-                if (genes[offset + j] == neighbours[j]) {
-                    matches++;
-                }
-            }
-            if (matches >= minMatches) {
-                value = i;
-            }
+        int offset = 0;
+        for (int i = 0; i < N_NEIGHBOURS; i++) {
+            offset += neighbours[i] * Math.pow(N_VALUES, i);
         }
-        return value;
+        return genes[offset];
     }
 
     private void initEnv() {
@@ -138,7 +129,7 @@ public class Chromosome {
     }
 
     public double getMaxDistance() {
-        return env.length * env[0].length * Math.pow(2, 2);
+        return Math.sqrt(env.length * env[0].length * Math.pow(2, 2));
     }
 
     public double getFitness() {
@@ -153,6 +144,7 @@ public class Chromosome {
                 distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
             }
         }
+        distance = Math.sqrt(distance);
         return getMaxDistance() - distance;
     }
 

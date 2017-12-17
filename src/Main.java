@@ -1,13 +1,15 @@
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Random;
 
 public class Main {
     public static void main(String[] args) {
-        int pop = 1000;
-        double mutProb = 0.2;
-        Chromosome chromosome = getBest(pop, 0.9, mutProb);
+        int pop = 50;
+        double mutProb = 0.1;
+        Chromosome chromosome = getBest(pop, 0.95, mutProb);
         int[][] env = chromosome.getEnv();
         try {
             PrintWriter printWriter = new PrintWriter(new FileWriter("chromosome.txt", true));
@@ -55,7 +57,9 @@ public class Main {
             double maxFitness = (new Chromosome()).getMaxFitness();
             double bestFitness = best.getFitness();
             while (bestFitness < accuracy * maxFitness) {
-                System.out.println(bestFitness + " / " + maxFitness);
+                NumberFormat formatter = new DecimalFormat("#0.00");
+                System.out.print(formatter.format(bestFitness / maxFitness * 100));
+                System.out.println("%");
                 Chromosome[] nextPopulation = new Chromosome[populationSize];
                 for (int j = 0; j < populationSize; j++) {
                     Chromosome x = getRandom(population);
@@ -67,8 +71,11 @@ public class Main {
                 population = nextPopulation;
                 for (Chromosome c :
                         population) {
-                    if (c.getFitness() > best.getFitness()) best = c;
+                    double cFitness = c.getFitness();
+                    if (cFitness > best.getFitness()) best = c;
+                    //System.out.print(cFitness + " ");
                 }
+                //System.out.println();
                 bestFitness = best.getFitness();
             }
         } catch (Exception e) {
