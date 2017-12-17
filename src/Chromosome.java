@@ -68,6 +68,15 @@ public class Chromosome {
         return genes;
     }
 
+    private static int[] getRandomColoring() {
+        Random random = new Random();
+        int coloring[] = new int[N_VALUES];
+        for (int i = 0; i < coloring.length; i++) {
+            coloring[i] = random.nextInt(N_COLORS);
+        }
+        return coloring;
+    }
+
     public double getMaxFitness() {
         return getMaxDistance();
     }
@@ -165,7 +174,7 @@ public class Chromosome {
         return mutated;
     }
 
-    Chromosome getWithCrossover(Chromosome other) {
+    Chromosome getWithHalfCrossover(Chromosome other) {
 
         int crossGenes[] = new int[length];
         for (int i = 0; i < length / 2; i++) {
@@ -182,7 +191,70 @@ public class Chromosome {
         }
     }
 
+    Chromosome getWithUniformCrossover(Chromosome other) {
+
+        int crossGenes[] = new int[length];
+        int otherGenes[] = other.getGenes();
+        for (int i = 0; i < length; i++) {
+            if (Math.random() > 0.5)
+                crossGenes[i] = genes[i];
+            else
+                crossGenes[i] = otherGenes[i];
+        }
+        try {
+            return new Chromosome(crossGenes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public int[] getGenes() {
         return genes.clone();
     }
+
+    /*public static int[] findBestColoring(int populationSize, double accuracy, double mutProb) {
+        int[][] population = new int[populationSize][N_VALUES];
+        for (int i = 0; i < populationSize; i++) {
+            try {
+                population[i] = getRandomColoring();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        int[] best = population[0];
+        for (int[] c :
+                population) {
+            if (c.getFitness() > best.getFitness()) best = c;
+        }
+        try {
+            double maxFitness = (new Chromosome()).getMaxFitness();
+            double bestFitness = best.getFitness();
+            while (bestFitness < accuracy * maxFitness) {
+                NumberFormat formatter = new DecimalFormat("#0.00");
+                System.out.print(formatter.format(bestFitness / maxFitness * 100));
+                System.out.println("%");
+                Chromosome[] nextPopulation = new Chromosome[populationSize];
+                for (int j = 0; j < populationSize; j++) {
+                    Chromosome x = getRandom(population);
+                    Chromosome y = getRandom(population);
+                    Chromosome child = x.getWithCrossover(y);
+                    child = child.getMutated(mutProb);
+                    nextPopulation[j] = child;
+                }
+                population = nextPopulation;
+                for (Chromosome c :
+                        population) {
+                    double cFitness = c.getFitness();
+                    if (cFitness > best.getFitness()) best = c;
+                    //System.out.print(cFitness + " ");
+                }
+                //System.out.println();
+                bestFitness = best.getFitness();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return best;
+    }*/
 }
