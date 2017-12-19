@@ -12,18 +12,19 @@ import java.util.stream.Collectors;
 public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
-    public static final int N_VALUES = 3;
+    public static final int N_VALUES = 9;
     public static final int N_COLORS = 3;
     public static final int length = (int) Math.pow(N_VALUES, N_NEIGHBOURS);
     public static final int left = 0;
     public static final int right = N_VALUES - 1;
     public static final int minMatches = 2;
     public static final int steps = 10;
-    public static final int[] coloringScheme = {0, 1, 2};
+    private int[] coloringScheme;
     private int[][] perfectTree;
     private int[][] iniTree;
     private int[] genes = new int[length];                                       //should be of length length for this task
     private int[][] env;
+    private int[][] advanced;
     private boolean fitnessCached = false;
     private double fitness;
 
@@ -108,15 +109,17 @@ public class Chromosome {
 
     public void advance() {
         int[][] nextEnv = new int[env.length][env[0].length];
+        advanced = new int[env.length][env[0].length];
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
                 nextEnv[i][j] = getAdvancedBlockValue(i, j);
+                advanced[i][j] = nextEnv[i][j];
             }
         }
         env = nextEnv;
     }
 
-    private void color() {
+    private void color(int[] coloringScheme) {
         int[][] nextEnv = new int[env.length][env[0].length];
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
@@ -136,7 +139,11 @@ public class Chromosome {
     }
 
     private void initEnv() {
-        env = iniTree;
+        env = iniTree.clone();
+    }
+
+    private void initAdvancedEnv() {
+        env = advanced.clone();
     }
 
     public double getMaxDistance() {
@@ -146,21 +153,27 @@ public class Chromosome {
     public double getFitness() {
         if (fitnessCached)
             return fitness;
-        double distance = 0;
         initEnv();
         for (int i = 0; i < steps; i++) {
             advance();
         }
-        //color();
+        coloringScheme = getBestColoring(100, 1000, 0.1);
+        fitnessCached = true;
+        fitness = getAdvancedFitness(coloringScheme);
+        return fitness;
+    }
+
+    private double getAdvancedFitness(int[] coloringScheme) {
+        initAdvancedEnv();
+        color(coloringScheme);
+        double distance = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
                 distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
             }
         }
         distance = Math.sqrt(distance);
-        fitnessCached = true;
-        fitness = getMaxDistance() - distance;
-        return fitness;
+        return getMaxDistance() - distance;
     }
 
     Chromosome getMutated(double p) {
@@ -178,6 +191,17 @@ public class Chromosome {
             e.printStackTrace();
         }
         return mutated;
+    }
+
+    int[] getMutatedColoring(int[] coloring, double p) {
+        int[] mutGenes = coloring.clone();
+        for (int i = 0; i < mutGenes.length; i++) {
+            if (Math.random() <= p) {
+                Random random = new Random();
+                mutGenes[i] = random.nextInt(N_COLORS);
+            }
+        }
+        return mutGenes;
     }
 
     Chromosome getWithHalfCrossover(Chromosome other) {
@@ -215,11 +239,28 @@ public class Chromosome {
         }
     }
 
+    int[] getColoringWithUniformCrossover(int[] first, int[] second) {
+
+        int crossGenes[] = new int[first.length];
+        for (int i = 0; i < first.length; i++) {
+            if (Math.random() > 0.5)
+                crossGenes[i] = first[i];
+            else
+                crossGenes[i] = second[i];
+        }
+        try {
+            return crossGenes;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public int[] getGenes() {
         return genes.clone();
     }
 
-    /*public static int[] findBestColoring(int populationSize, double accuracy, double mutProb) {
+    public int[] getBestColoring(int populationSize, int nSteps, double mutProb) {
         int[][] population = new int[populationSize][N_VALUES];
         for (int i = 0; i < populationSize; i++) {
             try {
@@ -228,39 +269,67 @@ public class Chromosome {
                 e.printStackTrace();
             }
         }
-        int[] best = population[0];
-        for (int[] c :
-                population) {
-            if (c.getFitness() > best.getFitness()) best = c;
-        }
+        double previousFitness = 0;
+        int[] fittest = getFittest(population);
+        double bestFitness = getAdvancedFitness(fittest);
         try {
             double maxFitness = (new Chromosome()).getMaxFitness();
-            double bestFitness = best.getFitness();
-            while (bestFitness < accuracy * maxFitness) {
-                NumberFormat formatter = new DecimalFormat("#0.00");
-                System.out.print(formatter.format(bestFitness / maxFitness * 100));
-                System.out.println("%");
-                Chromosome[] nextPopulation = new Chromosome[populationSize];
-                for (int j = 0; j < populationSize; j++) {
-                    Chromosome x = getRandom(population);
-                    Chromosome y = getRandom(population);
-                    Chromosome child = x.getWithCrossover(y);
-                    child = child.getMutated(mutProb);
-                    nextPopulation[j] = child;
-                }
-                population = nextPopulation;
-                for (Chromosome c :
-                        population) {
-                    double cFitness = c.getFitness();
-                    if (cFitness > best.getFitness()) best = c;
-                    //System.out.print(cFitness + " ");
-                }
+            for (int i = 0; i < nSteps; i++) {
+                generateNextPopulation(population, 4, mutProb);
+                previousFitness = bestFitness;
+                fittest = getFittest(population);
+                bestFitness = getAdvancedFitness(fittest);
                 //System.out.println();
-                bestFitness = best.getFitness();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return getFittest(population);
+    }
+
+    public void generateNextPopulation(int[][] population, int nTournament, double mutProb) {
+        Helper.shuffleArray(population);
+        for (int i = 0; i < population.length / nTournament; i++) {
+            double firstFitness = Double.MIN_VALUE;
+            double secondFitness = Double.MIN_VALUE;
+            int firstBestIndex = -1;
+            int secondBestIndex = -1;
+            for (int j = 0; j < nTournament; j++) {
+                double f = getAdvancedFitness(population[i * nTournament + j]);
+                if (f > firstFitness) {
+                    firstFitness = f;
+                    firstBestIndex = j;
+                }
+            }
+            for (int j = 0; j < nTournament; j++) {
+                double f = getAdvancedFitness(population[i * nTournament + j]);
+                if (f > secondFitness && j != firstBestIndex) {
+                    secondFitness = f;
+                    secondBestIndex = j;
+                }
+            }
+            int[] firstBest = population[i * nTournament + firstBestIndex];
+            int[] secondBest = population[i * nTournament + secondBestIndex];
+            for (int j = 0; j < nTournament; j++) {
+                if (j != firstBestIndex && j != secondBestIndex)
+                    population[i * nTournament + j] = getMutatedColoring(getColoringWithUniformCrossover(firstBest, secondBest), mutProb);
+            }
+        }
+    }
+
+    public int[] getFittest(int[][] population) {
+        int[] best = population[0];
+        double bestFitness = getAdvancedFitness(best);
+        for (int[] c :
+                population) {
+            double cFitness = getAdvancedFitness(c);
+            if (cFitness > bestFitness) {
+                best = c;
+                bestFitness = cFitness;
+            }
+            /*System.out.print(c.getFitness()+" ");
+            System.out.println();*/
+        }
         return best;
-    }*/
+    }
 }

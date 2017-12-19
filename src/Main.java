@@ -10,7 +10,7 @@ import java.util.Random;
 
 public class Main {
     public static void main(String[] args) {
-        int pop = 1000;
+        int pop = 50;
         double mutProb = 0.1;
         Chromosome chromosome = getBest(pop, 0.95, mutProb);
         try {
