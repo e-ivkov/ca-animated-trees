@@ -1,34 +1,26 @@
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.util.Arrays;
 import java.util.Random;
 
 public class Main {
     public static void main(String[] args) {
-        int pop = 10000;
-        double mutProb = 0.3;
+        int pop = 1000;
+        double mutProb = 0.1;
         Chromosome chromosome = getBest(pop, 0.95, mutProb);
-        int[][] env = chromosome.getEnv();
         try {
             PrintWriter printWriter = new PrintWriter(new FileWriter("chromosome.txt", true));
-            printWriter.printf("pop=%d mutProb=%f minMatches=%d steps=%d coloring=%n", pop, mutProb, Chromosome.minMatches, Chromosome.steps);
-            for (int i = 0; i < env.length; i++) {
-                for (int j = 0; j < env[i].length; j++) {
-                    System.out.print(env[i][j]);
-                    printWriter.print(env[i][j]);
-                }
-                System.out.println();
-                printWriter.println();
-            }
-            System.out.println("Genes: " + Arrays.toString(chromosome.getGenes()));
-            printWriter.println("Genes: " + Arrays.toString(chromosome.getGenes()));
-            System.out.println("Coloring: " + Arrays.toString(Chromosome.coloringScheme));
-            printWriter.println("Coloring: " + Arrays.toString(Chromosome.coloringScheme));
-            System.out.println("Fitness: " + chromosome.getFitness());
-            printWriter.println("Fitness: " + chromosome.getFitness());
-            printWriter.close();
+            Gson gson = new GsonBuilder()
+                    .excludeFieldsWithModifiers(Modifier.TRANSIENT)
+                    .create();
+            String json = gson.toJson(chromosome);
+            printWriter.println(json);
+            System.out.println(json);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -48,15 +40,27 @@ public class Main {
                 e.printStackTrace();
             }
         }
-        double bestFitness = getFittest(population).getFitness();
+        double previousFitness = 0;
+        Chromosome fittest = getFittest(population);
+        double bestFitness = fittest.getFitness();
         try {
+            Gson gson = new GsonBuilder()
+                    .excludeFieldsWithModifiers(Modifier.TRANSIENT)
+                    .create();
             double maxFitness = (new Chromosome()).getMaxFitness();
             while (bestFitness < accuracy * maxFitness) {
                 NumberFormat formatter = new DecimalFormat("#0.00");
-                System.out.print(formatter.format(bestFitness / maxFitness * 100));
-                System.out.println("%");
+                if (bestFitness > previousFitness) {
+                    System.out.print(formatter.format(bestFitness / maxFitness * 100));
+                    System.out.println("%");
+                    PrintWriter printWriter = new PrintWriter(new FileWriter("log.txt", true));
+                    printWriter.println(gson.toJson(fittest));
+                    printWriter.close();
+                }
                 generateNextPopulation(population, 4, mutProb);
-                bestFitness = getFittest(population).getFitness();
+                previousFitness = bestFitness;
+                fittest = getFittest(population);
+                bestFitness = fittest.getFitness();
                 //System.out.println();
             }
         } catch (Exception e) {

@@ -12,18 +12,20 @@ import java.util.stream.Collectors;
 public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
-    public static final int N_VALUES = 9;
+    public static final int N_VALUES = 3;
     public static final int N_COLORS = 3;
     public static final int length = (int) Math.pow(N_VALUES, N_NEIGHBOURS);
     public static final int left = 0;
     public static final int right = N_VALUES - 1;
     public static final int minMatches = 2;
     public static final int steps = 10;
-    public static final int[] coloringScheme = {0, 0, 0, 1, 1, 1, 2, 2, 2};
+    public static final int[] coloringScheme = {0, 1, 2};
     private int[][] perfectTree;
     private int[][] iniTree;
     private int[] genes = new int[length];                                       //should be of length length for this task
     private int[][] env;
+    private boolean fitnessCached = false;
+    private double fitness;
 
     public Chromosome(int[] genes) throws Exception {
         for (int gene :
@@ -142,19 +144,23 @@ public class Chromosome {
     }
 
     public double getFitness() {
+        if (fitnessCached)
+            return fitness;
         double distance = 0;
         initEnv();
         for (int i = 0; i < steps; i++) {
             advance();
         }
-        color();
+        //color();
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
                 distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
             }
         }
         distance = Math.sqrt(distance);
-        return getMaxDistance() - distance;
+        fitnessCached = true;
+        fitness = getMaxDistance() - distance;
+        return fitness;
     }
 
     Chromosome getMutated(double p) {
