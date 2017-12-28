@@ -9,18 +9,38 @@ import java.text.NumberFormat;
 import java.util.Random;
 
 public class Main {
+
+    public static final int[] popSizes = {50, 100, 150, 200, 250};
+    public static final double[] mutProbs = {0.05, 0.1, 0.15, 0.2, 0.25};
+    public static final int[] nValues = {3, 6, 9, 12, 15};
+    public static final int[] coloringPopSizes = {50, 100, 150, 200, 250};
+    public static final double[] coloringMutProbs = {0.05, 0.1, 0.15, 0.2, 0.25};
+    public static final int[] animSteps = {7, 10, 13, 16, 19};
+
     public static void main(String[] args) {
-        int pop = 50;
-        double mutProb = 0.1;
-        Chromosome chromosome = getBest(pop, 0.95, mutProb);
         try {
-            PrintWriter printWriter = new PrintWriter(new FileWriter("chromosome.txt", true));
-            Gson gson = new GsonBuilder()
-                    .excludeFieldsWithModifiers(Modifier.TRANSIENT)
-                    .create();
-            String json = gson.toJson(chromosome);
-            printWriter.println(json);
-            System.out.println(json);
+            PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", false));
+            printWriter.println("popSize,mutProb,coloringPopSize,coloringMutProb,nValues,animSteps,stepN,chromosome");
+            printWriter.close();
+            for (int popSize :
+                    popSizes) {
+                for (double mutProb :
+                        mutProbs) {
+                    for (int nv :
+                            nValues) {
+                        for (int coloringPopSize :
+                                coloringPopSizes) {
+                            for (double coloringMutProb :
+                                    coloringMutProbs) {
+                                for (int nas :
+                                        animSteps) {
+                                    getBest(popSize, mutProb, coloringPopSize, coloringMutProb, nv, nas, 1000);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -28,14 +48,13 @@ public class Main {
 
     /**
      * @param populationSize
-     * @param accuracy       from 0 to 1
      * @return
      */
-    public static Chromosome getBest(int populationSize, double accuracy, double mutProb) {
+    public static Chromosome getBest(int populationSize, double mutProb, int coloringPopSize, double coloringMutProb, int nValues, int animSteps, int n) {
         Chromosome[] population = new Chromosome[populationSize];
         for (int i = 0; i < populationSize; i++) {
             try {
-                population[i] = new Chromosome();
+                population[i] = new Chromosome(coloringPopSize, coloringMutProb, nValues, animSteps);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -47,21 +66,22 @@ public class Main {
             Gson gson = new GsonBuilder()
                     .excludeFieldsWithModifiers(Modifier.TRANSIENT)
                     .create();
-            double maxFitness = (new Chromosome()).getMaxFitness();
-            while (bestFitness < accuracy * maxFitness) {
+            double maxFitness = (new Chromosome(coloringPopSize, coloringMutProb, nValues, animSteps)).getMaxFitness();
+            for (int i = 0; i < n; i++) {
+                //System.out.println(i);
                 NumberFormat formatter = new DecimalFormat("#0.00");
                 if (bestFitness > previousFitness) {
                     System.out.print(formatter.format(bestFitness / maxFitness * 100));
                     System.out.println("%");
-                    PrintWriter printWriter = new PrintWriter(new FileWriter("log.txt", true));
-                    printWriter.println(gson.toJson(fittest));
+                    PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", true));
+                    String ks = populationSize + "," + mutProb + "," + coloringPopSize + "," + coloringMutProb + "," + nValues + "," + animSteps + ",";
+                    printWriter.println(ks + i + "," + gson.toJson(fittest));
                     printWriter.close();
                 }
                 generateNextPopulation(population, 4, mutProb);
                 previousFitness = bestFitness;
                 fittest = getFittest(population);
                 bestFitness = fittest.getFitness();
-                //System.out.println();
             }
         } catch (Exception e) {
             e.printStackTrace();
