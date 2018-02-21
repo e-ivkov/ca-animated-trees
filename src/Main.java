@@ -10,40 +10,54 @@ import java.util.Random;
 
 public class Main {
 
-    public static final int[] popSizes = {50, 100, 150, 200, 250};
+    public static final int[] popSizes = {20, 40, 60, 100, 120};
     public static final double[] mutProbs = {0.05, 0.1, 0.15, 0.2, 0.25};
     public static final int[] nValues = {3, 6, 9, 12, 15};
-    public static final int[] coloringPopSizes = {50, 100, 150, 200, 250};
+    public static final int[] coloringPopSizes = {20, 40, 60, 100, 120};
     public static final double[] coloringMutProbs = {0.05, 0.1, 0.15, 0.2, 0.25};
     public static final int[] animSteps = {7, 10, 13, 16, 19};
 
     public static void main(String[] args) {
         try {
             PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", false));
-            printWriter.println("popSize,mutProb,coloringPopSize,coloringMutProb,nValues,animSteps,stepN,chromosome");
+            PrintWriter landscapeWriter = new PrintWriter(new FileWriter("fitnessLandscape.csv", false));
+            printWriter.println("popSize;mutProb;coloringPopSize;coloringMutProb;nValues;animSteps;stepN;fitness;chromosome");
             printWriter.close();
-            for (int popSize :
-                    popSizes) {
-                for (double mutProb :
-                        mutProbs) {
-                    for (int nv :
-                            nValues) {
-                        for (int coloringPopSize :
-                                coloringPopSizes) {
-                            for (double coloringMutProb :
-                                    coloringMutProbs) {
-                                for (int nas :
-                                        animSteps) {
-                                    getBest(popSize, mutProb, coloringPopSize, coloringMutProb, nv, nas, 1000);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            getBest(40, 0.2, 40, 0.2, 9, 10, 100000);
+            //gatherStats();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void gatherStats() {
+
+        int i = 0;
+        for (int popSize : popSizes) {
+            getBest(popSize, mutProbs[1], coloringPopSizes[1], coloringMutProbs[1], nValues[1], animSteps[1], 1000);
+            System.out.println(++i + "/30");
+        }
+        for (double mutProb : mutProbs) {
+            getBest(popSizes[1], mutProb, coloringPopSizes[1], coloringMutProbs[1], nValues[1], animSteps[1], 1000);
+            System.out.println(++i + "/30");
+        }
+        for (int nv : nValues) {
+            getBest(popSizes[1], mutProbs[1], coloringPopSizes[1], coloringMutProbs[1], nv, animSteps[1], 1000);
+            System.out.println(++i + "/30");
+        }
+        for (int cPopSize : coloringPopSizes) {
+            getBest(popSizes[1], mutProbs[1], cPopSize, coloringMutProbs[1], nValues[1], animSteps[1], 1000);
+            System.out.println(++i + "/30");
+        }
+        for (double cMutProb : coloringMutProbs) {
+            getBest(popSizes[1], mutProbs[1], coloringPopSizes[1], cMutProb, nValues[1], animSteps[1], 1000);
+            System.out.println(++i + "/30");
+        }
+        for (int as : animSteps) {
+            getBest(popSizes[1], mutProbs[1], coloringPopSizes[1], coloringMutProbs[1], nValues[1], as, 1000);
+            System.out.println(++i + "/30");
+        }
+
     }
 
     /**
@@ -68,15 +82,20 @@ public class Main {
                     .create();
             double maxFitness = (new Chromosome(coloringPopSize, coloringMutProb, nValues, animSteps)).getMaxFitness();
             for (int i = 0; i < n; i++) {
-                //System.out.println(i);
-                NumberFormat formatter = new DecimalFormat("#0.00");
+                System.out.println((i + 1) + "/" + n);
+                NumberFormat formatter = new DecimalFormat("#0.0000");
                 if (bestFitness > previousFitness) {
-                    System.out.print(formatter.format(bestFitness / maxFitness * 100));
-                    System.out.println("%");
                     PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", true));
-                    String ks = populationSize + "," + mutProb + "," + coloringPopSize + "," + coloringMutProb + "," + nValues + "," + animSteps + ",";
-                    printWriter.println(ks + i + "," + gson.toJson(fittest));
+                    PrintWriter landscapeWriter = new PrintWriter(new FileWriter("fitnessLandscape.csv", true));
+                    String ks = populationSize + ";" + mutProb + ";" + coloringPopSize + ";" + coloringMutProb + ";" + nValues + ";" + animSteps + ";";
+                    printWriter.println(ks + i + ";" + formatter.format(fittest.getFitness() / fittest.getMaxFitness() * 100) + "%;" + gson.toJson(fittest));
                     printWriter.close();
+                    for (Chromosome ch :
+                            population) {
+                        landscapeWriter.print(formatter.format(ch.getFitness() / fittest.getMaxFitness() * 100) + ";");
+                    }
+                    landscapeWriter.println();
+                    landscapeWriter.close();
                 }
                 generateNextPopulation(population, 4, mutProb);
                 previousFitness = bestFitness;

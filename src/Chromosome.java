@@ -14,6 +14,7 @@ public class Chromosome {
     public static final int N_NEIGHBOURS = 4;
     public static final int N_COLORS = 3;
     public static final int left = 0;
+    private static final boolean coloringDisabled = false;
     private int nValues;
     private int length;
     private int right;
@@ -118,11 +119,10 @@ public class Chromosome {
         int[][] nextEnv = new int[env.length][env[0].length];
         advanced = new int[env.length][env[0].length];
         for (int i = 0; i < env.length; i++) {
-            for (int j = 0; j < env[i].length; j++) {
-                nextEnv[i][j] = getAdvancedBlockValue(i, j);
-                advanced[i][j] = nextEnv[i][j];
-            }
+            int finalI = i;
+            Arrays.parallelSetAll(nextEnv[i], (j) -> getAdvancedBlockValue(finalI, j));
         }
+        advanced = nextEnv.clone();
         env = nextEnv;
     }
 
@@ -164,7 +164,8 @@ public class Chromosome {
         for (int i = 0; i < steps; i++) {
             advance();
         }
-        coloringScheme = getBestColoring(coloringPopSize, 1000, coloringMutProb);
+        if (!coloringDisabled)
+            coloringScheme = getBestColoring(coloringPopSize, 200, coloringMutProb);
         fitnessCached = true;
         fitness = getAdvancedFitness(coloringScheme);
         return fitness;
@@ -172,7 +173,8 @@ public class Chromosome {
 
     private double getAdvancedFitness(int[] coloringScheme) {
         initAdvancedEnv();
-        color(coloringScheme);
+        if (!coloringDisabled)
+            color(coloringScheme);
         double distance = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
