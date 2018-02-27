@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="CAGeneticTrees:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/CAGeneticTrees_jar</output-path>
+    <root id="archive" name="CAGeneticTrees.jar">
+      <element id="module-output" name="CAGeneticTrees" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/gson-2.8.2.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

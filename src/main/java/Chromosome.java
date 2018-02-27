@@ -1,7 +1,5 @@
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Project: SAW Genetic Algorithms
@@ -12,23 +10,31 @@ import java.util.stream.Collectors;
 public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
-    public static final int N_VALUES = 9;
     public static final int N_COLORS = 3;
-    public static final int length = (int) Math.pow(N_VALUES, N_NEIGHBOURS);
     public static final int left = 0;
-    public static final int right = N_VALUES - 1;
-    public static final int minMatches = 2;
-    public static final int steps = 10;
+    private boolean coloringDisabled = false;
+    private int nValues;
+    private int length;
+    private int right;
+    private int steps;
     private int[] coloringScheme;
-    private int[][] perfectTree;
-    private int[][] iniTree;
-    private int[] genes = new int[length];                                       //should be of length length for this task
-    private int[][] env;
+    private transient int[][] perfectTree;
+    private transient int[][] iniTree;
+    private int[] genes;                                       //should be of length length for this task
+    private transient int[][] env;
     private int[][] advanced;
     private boolean fitnessCached = false;
     private double fitness;
+    private int coloringPopSize;
+    private double coloringMutProb;
 
-    public Chromosome(int[] genes) throws Exception {
+    public Chromosome(int[] genes, int coloringPopSize, double coloringMutProb, int nValues, int steps) throws Exception {
+        this.coloringPopSize = coloringPopSize;
+        this.coloringMutProb = coloringMutProb;
+        this.nValues = nValues;
+        this.steps = steps;
+        length = (int) Math.pow(nValues, N_NEIGHBOURS);
+        right = nValues - 1;
         for (int gene :
                 genes) {
             if (gene > right || gene < left)
@@ -38,31 +44,16 @@ public class Chromosome {
             this.genes = genes;
         else
             throw new Exception("Genes string should be of length " + length + " for this task");
-        perfectTree = parseCSV("perfectTree7x7.csv", ",");
-        iniTree = parseCSV("iniTree7x7.csv", ",");
+        perfectTree = Helper.parseCSV("perfectTree7x7.csv");
+        iniTree = Helper.parseCSV("iniTree7x7.csv");
         env = new int[perfectTree.length][perfectTree[0].length];
     }
 
-    public Chromosome() throws Exception {
-        this(getRandomGenes());
+    public Chromosome(int coloringPopSize, double coloringMutProb, int nValues, int steps) throws Exception {
+        this(getRandomGenes((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1), coloringPopSize, coloringMutProb, nValues, steps);
     }
 
-    private static int[][] parseCSV(String filename, String delimiter) throws FileNotFoundException {
-        Scanner scanner = new Scanner(new File(filename));
-        List<List<Integer>> parsed = new ArrayList<>();
-        while (scanner.hasNextLine()) {
-            parsed.add(Arrays.stream(scanner.nextLine().split(delimiter)).map(Integer::parseInt).collect(Collectors.toList()));
-        }
-        int arr[][] = new int[parsed.size()][parsed.size()];
-        for (int i = 0; i < arr.length; i++) {
-            for (int j = 0; j < arr[0].length; j++) {
-                arr[i][j] = parsed.get(i).get(j);
-            }
-        }
-        return arr;
-    }
-
-    private static int[] getRandomGenes() {
+    private static int[] getRandomGenes(int length, int right) {
         Random random = new Random();
         int genes[] = new int[length];
         for (int i = 0; i < length; i++) {
@@ -71,9 +62,17 @@ public class Chromosome {
         return genes;
     }
 
-    private static int[] getRandomColoring() {
+    public void setPerfectTree(int[][] perfectTree) {
+        this.perfectTree = perfectTree;
+    }
+
+    public void setIniTree(int[][] iniTree) {
+        this.iniTree = iniTree;
+    }
+
+    private int[] getRandomColoring() {
         Random random = new Random();
-        int coloring[] = new int[N_VALUES];
+        int coloring[] = new int[nValues];
         for (int i = 0; i < coloring.length; i++) {
             coloring[i] = random.nextInt(N_COLORS);
         }
@@ -107,15 +106,14 @@ public class Chromosome {
         return (x < env.length && x >= 0) && (y < env[0].length && y >= 0);
     }
 
-    public void advance() {
+    private void advance() {
         int[][] nextEnv = new int[env.length][env[0].length];
         advanced = new int[env.length][env[0].length];
         for (int i = 0; i < env.length; i++) {
-            for (int j = 0; j < env[i].length; j++) {
-                nextEnv[i][j] = getAdvancedBlockValue(i, j);
-                advanced[i][j] = nextEnv[i][j];
-            }
+            int finalI = i;
+            Arrays.parallelSetAll(nextEnv[i], (j) -> getAdvancedBlockValue(finalI, j));
         }
+        advanced = nextEnv.clone();
         env = nextEnv;
     }
 
@@ -133,7 +131,7 @@ public class Chromosome {
         int[] neighbours = getNeighbours(x, y);
         int offset = 0;
         for (int i = 0; i < N_NEIGHBOURS; i++) {
-            offset += neighbours[i] * Math.pow(N_VALUES, i);
+            offset += neighbours[i] * Math.pow(nValues, i);
         }
         return genes[offset];
     }
@@ -146,8 +144,28 @@ public class Chromosome {
         env = advanced.clone();
     }
 
-    public double getMaxDistance() {
+    private double getMaxDistance() {
         return Math.sqrt(env.length * env[0].length * Math.pow(2, 2));
+    }
+
+    /**
+     * requires coloring to be ready
+     */
+    public void simulateGrowth() {
+        initEnv();
+        int[][] temp;
+        for (int i = 0; i < steps; i++) {
+            advance();
+            temp = env.clone();
+            if (!coloringDisabled)
+                color(coloringScheme);
+            for (int[] t :
+                    env) {
+                System.out.println(Arrays.toString(t));
+            }
+            System.out.println();
+            env = temp.clone();
+        }
     }
 
     public double getFitness() {
@@ -157,7 +175,8 @@ public class Chromosome {
         for (int i = 0; i < steps; i++) {
             advance();
         }
-        coloringScheme = getBestColoring(100, 1000, 0.1);
+        if (!coloringDisabled)
+            coloringScheme = getBestColoring(coloringPopSize, 200, coloringMutProb);
         fitnessCached = true;
         fitness = getAdvancedFitness(coloringScheme);
         return fitness;
@@ -165,7 +184,8 @@ public class Chromosome {
 
     private double getAdvancedFitness(int[] coloringScheme) {
         initAdvancedEnv();
-        color(coloringScheme);
+        if (!coloringDisabled)
+            color(coloringScheme);
         double distance = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
@@ -186,14 +206,14 @@ public class Chromosome {
         }
         Chromosome mutated = null;
         try {
-            mutated = new Chromosome(mutGenes);
+            mutated = new Chromosome(mutGenes, coloringPopSize, coloringMutProb, nValues, steps);
         } catch (Exception e) {
             e.printStackTrace();
         }
         return mutated;
     }
 
-    int[] getMutatedColoring(int[] coloring, double p) {
+    private int[] getMutatedColoring(int[] coloring, double p) {
         int[] mutGenes = coloring.clone();
         for (int i = 0; i < mutGenes.length; i++) {
             if (Math.random() <= p) {
@@ -207,14 +227,13 @@ public class Chromosome {
     Chromosome getWithHalfCrossover(Chromosome other) {
 
         int crossGenes[] = new int[length];
-        for (int i = 0; i < length / 2; i++) {
-            crossGenes[i] = genes[i];
-        }
+        System.arraycopy(genes, 0, crossGenes, 0, length / 2);
+        System.arraycopy(other.getGenes(), length / 2, crossGenes, length / 2, length - (length / 2));
         for (int i = length / 2; i < length; i++) {
             crossGenes[i] = other.getGenes()[i];
         }
         try {
-            return new Chromosome(crossGenes);
+            return new Chromosome(crossGenes, coloringPopSize, coloringMutProb, nValues, steps);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -232,14 +251,14 @@ public class Chromosome {
                 crossGenes[i] = otherGenes[i];
         }
         try {
-            return new Chromosome(crossGenes);
+            return new Chromosome(crossGenes, coloringPopSize, coloringMutProb, nValues, steps);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    int[] getColoringWithUniformCrossover(int[] first, int[] second) {
+    private int[] getColoringWithUniformCrossover(int[] first, int[] second) {
 
         int crossGenes[] = new int[first.length];
         for (int i = 0; i < first.length; i++) {
@@ -261,7 +280,7 @@ public class Chromosome {
     }
 
     public int[] getBestColoring(int populationSize, int nSteps, double mutProb) {
-        int[][] population = new int[populationSize][N_VALUES];
+        int[][] population = new int[populationSize][nValues];
         for (int i = 0; i < populationSize; i++) {
             try {
                 population[i] = getRandomColoring();
@@ -273,7 +292,6 @@ public class Chromosome {
         int[] fittest = getFittest(population);
         double bestFitness = getAdvancedFitness(fittest);
         try {
-            double maxFitness = (new Chromosome()).getMaxFitness();
             for (int i = 0; i < nSteps; i++) {
                 generateNextPopulation(population, 4, mutProb);
                 previousFitness = bestFitness;
@@ -287,7 +305,7 @@ public class Chromosome {
         return getFittest(population);
     }
 
-    public void generateNextPopulation(int[][] population, int nTournament, double mutProb) {
+    private void generateNextPopulation(int[][] population, int nTournament, double mutProb) {
         Helper.shuffleArray(population);
         for (int i = 0; i < population.length / nTournament; i++) {
             double firstFitness = Double.MIN_VALUE;
@@ -317,7 +335,7 @@ public class Chromosome {
         }
     }
 
-    public int[] getFittest(int[][] population) {
+    private int[] getFittest(int[][] population) {
         int[] best = population[0];
         double bestFitness = getAdvancedFitness(best);
         for (int[] c :
