@@ -1,12 +1,17 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 public class Main {
 
@@ -19,11 +24,16 @@ public class Main {
 
     public static void main(String[] args) {
         try {
-            PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", false));
+            /*PrintWriter printWriter = new PrintWriter(new FileWriter("results.csv", false));
             PrintWriter landscapeWriter = new PrintWriter(new FileWriter("fitnessLandscape.csv", false));
             printWriter.println("popSize;mutProb;coloringPopSize;coloringMutProb;nValues;animSteps;stepN;fitness;chromosome");
             printWriter.close();
-            getBest(40, 0.2, 40, 0.2, 9, 10, 100000);
+            getBest(40, 0.2, 40, 0.2, 9, 10, 100000);*/
+            showAnimated("chromosomeColored.json");
+            char[] c = new char[100];
+            Arrays.fill(c, '-');
+            System.out.println(c);
+            showAnimated("chromosome.json");
             //gatherStats();
         } catch (Exception e) {
             e.printStackTrace();
@@ -169,5 +179,16 @@ public class Main {
             fitness += population[++i].getFitness();
         }
         return population[i];
+    }
+
+    public static void showAnimated(String filename) {
+        try {
+            String lines = Files.readAllLines((new File(filename)).toPath()).stream().collect(Collectors.joining());
+            Chromosome chromosome = (new Gson()).fromJson(lines, Chromosome.class);
+            chromosome.setIniTree(Helper.parseCSV("iniTree7x7.csv"));
+            chromosome.simulateGrowth();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

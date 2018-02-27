@@ -1,7 +1,5 @@
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Random;
 
 /**
  * Project: SAW Genetic Algorithms
@@ -14,7 +12,7 @@ public class Chromosome {
     public static final int N_NEIGHBOURS = 4;
     public static final int N_COLORS = 3;
     public static final int left = 0;
-    private static final boolean coloringDisabled = false;
+    private boolean coloringDisabled = false;
     private int nValues;
     private int length;
     private int right;
@@ -46,28 +44,13 @@ public class Chromosome {
             this.genes = genes;
         else
             throw new Exception("Genes string should be of length " + length + " for this task");
-        perfectTree = parseCSV("perfectTree7x7.csv");
-        iniTree = parseCSV("iniTree7x7.csv");
+        perfectTree = Helper.parseCSV("perfectTree7x7.csv");
+        iniTree = Helper.parseCSV("iniTree7x7.csv");
         env = new int[perfectTree.length][perfectTree[0].length];
     }
 
     public Chromosome(int coloringPopSize, double coloringMutProb, int nValues, int steps) throws Exception {
         this(getRandomGenes((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1), coloringPopSize, coloringMutProb, nValues, steps);
-    }
-
-    private static int[][] parseCSV(String filename) throws FileNotFoundException {
-        Scanner scanner = new Scanner(new File(filename));
-        List<List<Integer>> parsed = new ArrayList<>();
-        while (scanner.hasNextLine()) {
-            parsed.add(Arrays.stream(scanner.nextLine().split(",")).map(Integer::parseInt).collect(Collectors.toList()));
-        }
-        int arr[][] = new int[parsed.size()][parsed.size()];
-        for (int i = 0; i < arr.length; i++) {
-            for (int j = 0; j < arr[0].length; j++) {
-                arr[i][j] = parsed.get(i).get(j);
-            }
-        }
-        return arr;
     }
 
     private static int[] getRandomGenes(int length, int right) {
@@ -77,6 +60,14 @@ public class Chromosome {
             genes[i] = random.nextInt(right - left + 1) + left;
         }
         return genes;
+    }
+
+    public void setPerfectTree(int[][] perfectTree) {
+        this.perfectTree = perfectTree;
+    }
+
+    public void setIniTree(int[][] iniTree) {
+        this.iniTree = iniTree;
     }
 
     private int[] getRandomColoring() {
@@ -155,6 +146,26 @@ public class Chromosome {
 
     private double getMaxDistance() {
         return Math.sqrt(env.length * env[0].length * Math.pow(2, 2));
+    }
+
+    /**
+     * requires coloring to be ready
+     */
+    public void simulateGrowth() {
+        initEnv();
+        int[][] temp;
+        for (int i = 0; i < steps; i++) {
+            advance();
+            temp = env.clone();
+            if (!coloringDisabled)
+                color(coloringScheme);
+            for (int[] t :
+                    env) {
+                System.out.println(Arrays.toString(t));
+            }
+            System.out.println();
+            env = temp.clone();
+        }
     }
 
     public double getFitness() {
