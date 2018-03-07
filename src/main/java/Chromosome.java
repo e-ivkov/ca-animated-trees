@@ -1,3 +1,4 @@
+import java.io.FileNotFoundException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -12,7 +13,7 @@ public class Chromosome {
     public static final int N_NEIGHBOURS = 4;
     public static final int N_COLORS = 3;
     public static final int left = 0;
-    private boolean coloringDisabled = false;
+    private boolean coloringDisabled = true;
     private int nValues;
     private int length;
     private int right;
@@ -20,6 +21,7 @@ public class Chromosome {
     private int[] coloringScheme;
     private transient int[][] perfectTree;
     private transient int[][] iniTree;
+    private transient int[][][] treeGrowthBorders;
     private int[] genes;                                       //should be of length length for this task
     private transient int[][] env;
     private int[][] advanced;
@@ -27,6 +29,7 @@ public class Chromosome {
     private double fitness;
     private int coloringPopSize;
     private double coloringMutProb;
+    private int nNonZeroCells;
 
     public Chromosome(int[] genes, int coloringPopSize, double coloringMutProb, int nValues, int steps) throws Exception {
         this.coloringPopSize = coloringPopSize;
@@ -44,8 +47,16 @@ public class Chromosome {
             this.genes = genes;
         else
             throw new Exception("Genes string should be of length " + length + " for this task");
-        perfectTree = Helper.parseCSV("perfectTree7x7.csv");
-        iniTree = Helper.parseCSV("iniTree7x7.csv");
+        perfectTree = Helper.parseCSV("perfectTree7x7.csv", ",");
+        nNonZeroCells = 0;
+        for (int i = 0; i < perfectTree.length; i++) {
+            for (int j = 0; j < perfectTree[0].length; j++) {
+                if (perfectTree[i][j] != 0)
+                    nNonZeroCells++;
+            }
+        }
+        iniTree = Helper.parseCSV("iniTree7x7.csv", ",");
+        parseBorders(new String[]{"1-2.csv", "3-4.csv", "5-6.csv", "7-8.csv", "9-10.csv"});
         env = new int[perfectTree.length][perfectTree[0].length];
     }
 
@@ -60,6 +71,17 @@ public class Chromosome {
             genes[i] = random.nextInt(right - left + 1) + left;
         }
         return genes;
+    }
+
+    private void parseBorders(String[] filenames) {
+        treeGrowthBorders = new int[5][][];
+        try {
+            for (int i = 0; i < 5; i++) {
+                treeGrowthBorders[i] = Helper.parseCSV(filenames[i], ";");
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     public void setPerfectTree(int[][] perfectTree) {
@@ -80,7 +102,7 @@ public class Chromosome {
     }
 
     public double getMaxFitness() {
-        return getMaxDistance();
+        return 1;
     }
 
     public int[][] getEnv() {
@@ -145,7 +167,7 @@ public class Chromosome {
     }
 
     private double getMaxDistance() {
-        return Math.sqrt(env.length * env[0].length * Math.pow(2, 2));
+        return Math.sqrt(nNonZeroCells * Math.pow(2, 2));
     }
 
     /**
@@ -168,17 +190,34 @@ public class Chromosome {
         }
     }
 
+    //works only without coloring
+    public boolean checkBorders(int step) {
+        for (int i = 0; i < env.length; i++) {
+            for (int j = 0; j < env[0].length; j++) {
+                if (treeGrowthBorders[step / 2][i][j] == 0 && env[i][j] != 0)
+                    return false;
+            }
+        }
+        return true;
+    }
+
     public double getFitness() {
         if (fitnessCached)
             return fitness;
         initEnv();
+        boolean inBounds = true;
+        int stepsInBounds = 0;
         for (int i = 0; i < steps; i++) {
             advance();
+            if (!checkBorders(i))
+                inBounds = false;
+            if (inBounds)
+                stepsInBounds++;
         }
         if (!coloringDisabled)
             coloringScheme = getBestColoring(coloringPopSize, 200, coloringMutProb);
         fitnessCached = true;
-        fitness = getAdvancedFitness(coloringScheme);
+        fitness = 0.5 * getAdvancedFitness(coloringScheme) + 0.5 * stepsInBounds / steps;
         return fitness;
     }
 
@@ -189,11 +228,13 @@ public class Chromosome {
         double distance = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[i].length; j++) {
-                distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
+                if (perfectTree[i][j] != 0)
+                    distance += Math.pow(perfectTree[i][j] - env[i][j], 2);
             }
         }
         distance = Math.sqrt(distance);
-        return getMaxDistance() - distance;
+        double maxDistance = getMaxDistance();
+        return (maxDistance - distance) / maxDistance;
     }
 
     Chromosome getMutated(double p) {
