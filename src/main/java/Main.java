@@ -27,12 +27,8 @@ public class Main {
             PrintWriter landscapeWriter = new PrintWriter(new FileWriter("fitnessLandscape.csv", false));
             printWriter.println("popSize;mutProb;coloringPopSize;coloringMutProb;nValues;animSteps;stepN;fitness;chromosome");
             printWriter.close();
-            getBest(100, 0.2, 40, 0.2, 3, 10, 100000);
-            /*showAnimated("chromosomeColored.json");
-            char[] c = new char[100];
-            Arrays.fill(c, '-');
-            System.out.println(c);
-            showAnimated("chromosome.json");*/
+            getBest(1000, 0.2, 40, 0.2, 3, 10, 100000);
+            //showAnimated("chromosome.json");
             //gatherStats();
         } catch (Exception e) {
             e.printStackTrace();
@@ -77,7 +73,7 @@ public class Main {
         Chromosome[] population = new Chromosome[populationSize];
         for (int i = 0; i < populationSize; i++) {
             try {
-                population[i] = new Chromosome(coloringPopSize, coloringMutProb, nValues, animSteps);
+                population[i] = new Chromosome();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -89,7 +85,7 @@ public class Main {
             Gson gson = new GsonBuilder()
                     .excludeFieldsWithModifiers(Modifier.TRANSIENT)
                     .create();
-            double maxFitness = (new Chromosome(coloringPopSize, coloringMutProb, nValues, animSteps)).getMaxFitness();
+            double maxFitness = (new Chromosome()).getMaxFitness();
             for (int i = 0; i < n; i++) {
                 System.out.println((i + 1) + "/" + n);
                 NumberFormat formatter = new DecimalFormat("#0.0000");
@@ -184,7 +180,6 @@ public class Main {
         try {
             String lines = Files.readAllLines((new File(filename)).toPath()).stream().collect(Collectors.joining());
             Chromosome chromosome = (new Gson()).fromJson(lines, Chromosome.class);
-            chromosome.setIniTree(Helper.parseCSV("iniTree7x7.csv", ","));
             chromosome.simulateGrowth();
         } catch (IOException e) {
             e.printStackTrace();
