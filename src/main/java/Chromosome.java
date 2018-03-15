@@ -24,8 +24,9 @@ public class Chromosome {
     private int[][] env;
     private boolean fitnessCached = false;
     private double fitness;
+    private double[] weights;
 
-    public Chromosome(int[] genes) throws Exception {
+    public Chromosome(int[] genes, double[] weights) throws Exception {
         length = (int) Math.pow(nValues, N_NEIGHBOURS);
         right = nValues - 1;
         for (int gene :
@@ -38,12 +39,13 @@ public class Chromosome {
         else
             throw new Exception("Genes string should be of length " + length + " for this task");
         initEnv();
+        this.weights = weights.clone();
         parseBorders(new String[]{"1-2.csv", "3-4.csv", "5-6.csv"});
 
     }
 
-    public Chromosome() throws Exception {
-        this(getRandomGenes((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1));
+    public Chromosome(double[] weights) throws Exception {
+        this(getRandomGenes((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1), weights);
     }
 
     private static int[] getRandomGenes(int length, int right) {
@@ -221,7 +223,7 @@ public class Chromosome {
         double apoptoticK = stepsInBounds / steps;
         double connectednessK = connectedness / steps;
         double coloringK = getColoringFitness();
-        fitness = 0.2 * connectednessK + 0.4 * apoptoticK + 0.4 * coloringK;
+        fitness = weights[0] * connectednessK + weights[1] * apoptoticK + weights[2] * coloringK;
         return fitness;
     }
 
@@ -235,7 +237,7 @@ public class Chromosome {
         }
         Chromosome mutated = null;
         try {
-            mutated = new Chromosome(mutGenes);
+            mutated = new Chromosome(mutGenes, weights);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -251,7 +253,7 @@ public class Chromosome {
             crossGenes[i] = other.getGenes()[i];
         }
         try {
-            return new Chromosome(crossGenes);
+            return new Chromosome(crossGenes, weights);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -269,7 +271,7 @@ public class Chromosome {
                 crossGenes[i] = otherGenes[i];
         }
         try {
-            return new Chromosome(crossGenes);
+            return new Chromosome(crossGenes, weights);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
