@@ -22,11 +22,11 @@ public class Helper {
         }
     }
 
-    public static int[][] parseCSV(String filename) throws FileNotFoundException {
+    public static int[][] parseCSV(String filename, String separator) throws FileNotFoundException {
         Scanner scanner = new Scanner(new File(filename));
         List<List<Integer>> parsed = new ArrayList<>();
         while (scanner.hasNextLine()) {
-            parsed.add(Arrays.stream(scanner.nextLine().split(",")).map(Integer::parseInt).collect(Collectors.toList()));
+            parsed.add(Arrays.stream(scanner.nextLine().split(separator)).map(Integer::parseInt).collect(Collectors.toList()));
         }
         int arr[][] = new int[parsed.size()][parsed.size()];
         for (int i = 0; i < arr.length; i++) {
