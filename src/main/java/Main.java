@@ -31,7 +31,7 @@ public class Main {
             /*getBest(1000, 0.2, 3000, new double[]{0.5,0.25,0.25}); //connectedness accent
             getBest(1000, 0.2, 3000, new double[]{0.25,0.5,0.25}); //apoptotic accent
             getBest(1000, 0.2, 3000, new double[]{0.25,0.25,0.5}); //coloring accent*/
-            getBest(1000, 0.2, 3000, new double[]{0.2, 0.4, 0.4}); //optimal
+            getBest(1000, 0.2, 500000, new double[]{0.1, 0.6, 0.3}); //optimal
             //showAnimated("chromosome.json");
             //gatherStats();
         } catch (Exception e) {
@@ -109,8 +109,8 @@ public class Main {
         for (int i = 0; i < population.length / nTournament; i++) {
             double firstFitness = Double.MIN_VALUE;
             double secondFitness = Double.MIN_VALUE;
-            int firstBestIndex = -1;
-            int secondBestIndex = -1;
+            int firstBestIndex = 0;
+            int secondBestIndex = 0;
             for (int j = 0; j < nTournament; j++) {
                 double f = population[i * nTournament + j].getFitness();
                 if (f > firstFitness) {
