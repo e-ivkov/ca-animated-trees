@@ -14,20 +14,22 @@ public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
     public static final int left = 0;
-    public static final int nValues = 3;
+    public static final int nValues = 6;
     public static final int steps = 6;
     public static final int envSize = 7;
+    public static final int colors = 3;
     private int length;
     private int right;
     private transient int[][][] treeGrowthBorders;
     private int[] genes;                                       //should be of length length for this task
     private int[][] env;
+    private int[][] advanced;
     private boolean fitnessCached = false;
     private double fitness;
     private double[] weights;
 
     public Chromosome(int[] genes, double[] weights) throws Exception {
-        length = (int) Math.pow(nValues, N_NEIGHBOURS);
+        length = (int) Math.pow(nValues, N_NEIGHBOURS) + nValues;
         right = nValues - 1;
         for (int gene :
                 genes) {
@@ -45,14 +47,17 @@ public class Chromosome {
     }
 
     public Chromosome(double[] weights) throws Exception {
-        this(getRandomGenes((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1), weights);
+        this(getRandomGenesWithColoring((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1, nValues, colors - 1), weights);
     }
 
-    private static int[] getRandomGenes(int length, int right) {
+    private static int[] getRandomGenesWithColoring(int length, int right, int cLength, int cRight) {
         Random random = new Random();
-        int genes[] = new int[length];
+        int genes[] = new int[length + cLength];
         for (int i = 0; i < length; i++) {
             genes[i] = random.nextInt(right - left + 1) + left;
+        }
+        for (int i = length; i < length + cLength; i++) {
+            genes[i] = random.nextInt(cRight - left + 1) + left;
         }
         return genes;
     }
@@ -73,7 +78,7 @@ public class Chromosome {
     }
 
     public int[][] getEnv() {
-        return env.clone();
+        return Helper.cloneArray(env);
     }
 
     public int[] getNeighbours(int x, int y) {
@@ -113,11 +118,21 @@ public class Chromosome {
 
     private void advance() {
         int[][] nextEnv = new int[env.length][env[0].length];
+        env = Helper.cloneArray(advanced);
         for (int i = 0; i < env.length; i++) {
             int finalI = i;
             Arrays.parallelSetAll(nextEnv[i], (j) -> getAdvancedBlockValue(finalI, j));
         }
+        advanced = Helper.cloneArray(nextEnv);
         env = nextEnv;
+        color();
+    }
+
+    private void color() {
+        for (int i = 0; i < env.length; i++) {
+            int finalI = i;
+            Arrays.parallelSetAll(env[i], (j) -> genes[env[finalI][j] + genes.length - nValues]);
+        }
     }
 
     private int getAdvancedBlockValue(int x, int y) {
@@ -132,6 +147,7 @@ public class Chromosome {
     private void initEnv() {
         env = new int[envSize][envSize];
         env[envSize - 1][envSize / 2 + 1] = 2;
+        advanced = Helper.cloneArray(env);
     }
 
     private double getConnectedness() {
@@ -158,17 +174,17 @@ public class Chromosome {
         int[][] temp;
         for (int i = 0; i < steps; i++) {
             advance();
-            temp = env.clone();
+            temp = Helper.cloneArray(env);
             for (int[] t :
                     env) {
                 System.out.println(Arrays.toString(t));
             }
             System.out.println();
-            env = temp.clone();
+            env = Helper.cloneArray(temp);
         }
     }
 
-    //works only without coloring
+
     private boolean checkBorders(int step) {
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[0].length; j++) {
@@ -186,8 +202,8 @@ public class Chromosome {
             for (int j = 0; j < env[0].length; j++) {
                 double hkWood = i / env.length;
                 double hkLeaf = 1 - hkWood;
-                double wkWood = Math.abs(env[0].length / 2 - j) / (env[0].length / 2);
-                double wkLeaf = 1 - wkWood;
+                double wkLeaf = Math.abs(env[0].length / 2 - j) / (env[0].length / 2);
+                double wkWood = 1 - wkLeaf;
                 if (treeGrowthBorders[2][i][j] > 0) {
                     maxFitness += Math.max(hkWood * wkWood, hkLeaf * wkLeaf);
                     switch (getBlock(i, j)) {
@@ -229,10 +245,16 @@ public class Chromosome {
 
     Chromosome getMutated(double p) {
         int[] mutGenes = genes.clone();
-        for (int i = 0; i < mutGenes.length; i++) {
+        for (int i = 0; i < mutGenes.length - nValues; i++) {
             if (Math.random() <= p) {
                 Random random = new Random();
                 mutGenes[i] = random.nextInt(right - left + 1) + left;
+            }
+        }
+        for (int i = mutGenes.length - nValues; i < mutGenes.length; i++) {
+            if (Math.random() <= p) {
+                Random random = new Random();
+                mutGenes[i] = random.nextInt(colors - left) + left;
             }
         }
         Chromosome mutated = null;
