@@ -1,6 +1,5 @@
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -12,7 +11,7 @@ import java.util.Random;
  */
 public class Chromosome {
 
-    public static final int N_NEIGHBOURS = 4;
+    public static final int N_NEIGHBOURS = 6;
     public static final int left = 0;
     public static final int nValues = 6;
     public static final int steps = 6;
@@ -22,8 +21,8 @@ public class Chromosome {
     private int right;
     private transient int[][][] treeGrowthBorders;
     private int[] genes;                                       //should be of length length for this task
-    private int[][] env;
-    private int[][] advanced;
+    private int[][][] env;
+    private int[][][] advanced;
     private boolean fitnessCached = false;
     private double fitness;
     private double[] weights;
@@ -77,51 +76,61 @@ public class Chromosome {
         return 1;
     }
 
-    public int[][] getEnv() {
+    public int[][][] getEnv() {
         return Helper.cloneArray(env);
     }
 
-    public int[] getNeighbours(int x, int y) {
-        int[] neighbours = new int[4];
-        neighbours[0] = getBlock(x + 1, y);
-        neighbours[1] = getBlock(x - 1, y);
-        neighbours[2] = getBlock(x, y + 1);
-        neighbours[3] = getBlock(x, y - 1);
+    public int[] getNeighbours(int x, int y, int z) {
+        int[] neighbours = new int[N_NEIGHBOURS];
+        neighbours[0] = getBlock(x + 1, y, z);
+        neighbours[1] = getBlock(x - 1, y, z);
+        neighbours[2] = getBlock(x, y + 1, z);
+        neighbours[3] = getBlock(x, y - 1, z);
+        neighbours[4] = getBlock(x, y, z + 1);
+        neighbours[5] = getBlock(x, y, z - 1);
         return neighbours;
     }
 
-    public List<Integer> getUpperConnectednessNeighborhood(int x, int y) {
+    public List<Integer> getUpperConnectednessNeighborhood(int x, int y, int z) {
         List<Integer> neighbours = new ArrayList<>();
-        neighbours.add(getBlock(x + 1, y + 1));
-        neighbours.add(getBlock(x + 1, y));
-        neighbours.add(getBlock(x + 1, y - 1));
+        neighbours.add(getBlock(x + 1, y + 1, z));
+        neighbours.add(getBlock(x + 1, y, z));
+        neighbours.add(getBlock(x + 1, y - 1, z));
+        neighbours.add(getBlock(x + 1, y, z + 1));
+        neighbours.add(getBlock(x + 1, y, z - 1));
         return neighbours;
     }
 
-    public List<Integer> getLowerConnectednessNeighborhood(int x, int y) {
+    public List<Integer> getLowerConnectednessNeighborhood(int x, int y, int z) {
         List<Integer> neighbours = new ArrayList<>();
-        neighbours.add(getBlock(x - 1, y + 1));
-        neighbours.add(getBlock(x - 1, y));
-        neighbours.add(getBlock(x - 1, y - 1));
+        neighbours.add(getBlock(x - 1, y + 1, z));
+        neighbours.add(getBlock(x - 1, y, z));
+        neighbours.add(getBlock(x - 1, y - 1, z));
+        neighbours.add(getBlock(x - 1, y, z + 1));
+        neighbours.add(getBlock(x - 1, y, z - 1));
         return neighbours;
     }
 
-    public int getBlock(int x, int y) {
-        if (isValid(x, y))
-            return env[x][y];
+    public int getBlock(int x, int y, int z) {
+        if (isValid(x, y, z))
+            return env[x][y][z];
         return 0;
     }
 
-    public boolean isValid(int x, int y) {
-        return (x < env.length && x >= 0) && (y < env[0].length && y >= 0);
+    public boolean isValid(int x, int y, int z) {
+        return (x < env.length && x >= 0) && (y < env[0].length && y >= 0) && (z < env[0][0].length && z >= 0);
     }
 
     private void advance() {
-        int[][] nextEnv = new int[env.length][env[0].length];
+        int[][][] nextEnv = new int[env.length][env[0].length][env[0][0].length];
         env = Helper.cloneArray(advanced);
         for (int i = 0; i < env.length; i++) {
-            int finalI = i;
-            Arrays.parallelSetAll(nextEnv[i], (j) -> getAdvancedBlockValue(finalI, j));
+            for (int j = 0; j < env[0].length; j++) {
+                for (int k = 0; k < env[0][0].length; k++) {
+
+                    nextEnv[i][j][k] = getAdvancedBlockValue(i, j, k);
+                }
+            }
         }
         advanced = Helper.cloneArray(nextEnv);
         env = nextEnv;
@@ -130,13 +139,16 @@ public class Chromosome {
 
     private void color() {
         for (int i = 0; i < env.length; i++) {
-            int finalI = i;
-            Arrays.parallelSetAll(env[i], (j) -> genes[env[finalI][j] + genes.length - nValues]);
+            for (int j = 0; j < env[0].length; j++) {
+                for (int k = 0; k < env[0][0].length; k++) {
+                    env[i][j][k] = genes[env[i][j][k] + genes.length - nValues];
+                }
+            }
         }
     }
 
-    private int getAdvancedBlockValue(int x, int y) {
-        int[] neighbours = getNeighbours(x, y);
+    private int getAdvancedBlockValue(int x, int y, int z) {
+        int[] neighbours = getNeighbours(x, y, z);
         int offset = 0;
         for (int i = 0; i < N_NEIGHBOURS; i++) {
             offset += neighbours[i] * Math.pow(nValues, i);
@@ -145,8 +157,8 @@ public class Chromosome {
     }
 
     private void initEnv() {
-        env = new int[envSize][envSize];
-        env[envSize - 1][envSize / 2 + 1] = 2;
+        env = new int[envSize][envSize][envSize];
+        env[envSize - 1][envSize / 2 + 1][envSize / 2 + 1] = 2;
         advanced = Helper.cloneArray(env);
     }
 
@@ -155,12 +167,14 @@ public class Chromosome {
         double connectedBlocks = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[0].length; j++) {
-                if (getBlock(i, j) == 2) {
-                    woodBlocks++;
-                    if (getUpperConnectednessNeighborhood(i, j).contains(2))
-                        connectedBlocks += 0.5;
-                    if (getLowerConnectednessNeighborhood(i, j).contains(2))
-                        connectedBlocks += 0.5;
+                for (int k = 0; k < env[0][0].length; k++) {
+                    if (getBlock(i, j, k) == 2) {
+                        woodBlocks++;
+                        if (getUpperConnectednessNeighborhood(i, j, k).contains(2))
+                            connectedBlocks += 0.5;
+                        if (getLowerConnectednessNeighborhood(i, j, k).contains(2))
+                            connectedBlocks += 0.5;
+                    }
                 }
             }
         }
@@ -171,15 +185,20 @@ public class Chromosome {
 
     public void simulateGrowth() {
         initEnv();
-        int[][] temp;
+        int[][][] temp;
         for (int i = 0; i < steps; i++) {
             advance();
             temp = Helper.cloneArray(env);
-            for (int[] t :
-                    env) {
-                System.out.println(Arrays.toString(t));
+            for (int j = 0; j < temp.length; j++) {
+                for (int k = 0; k < temp[0].length; k++) {
+                    for (int l = 0; l < temp[0][0].length; l++) {
+                        System.out.print(temp[j][l][k] + " ");
+                    }
+                    System.out.println();
+                }
+                System.out.println();
             }
-            System.out.println();
+            System.out.println("----------------------------");
             env = Helper.cloneArray(temp);
         }
     }
@@ -188,8 +207,11 @@ public class Chromosome {
     private boolean checkBorders(int step) {
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[0].length; j++) {
-                if (treeGrowthBorders[step / 2][i][j] == 0 && env[i][j] != 0)
-                    return false;
+                for (int k = 0; k < env[0][0].length; k++) {
+                    if (treeGrowthBorders[step / 2][i][j] == 0
+                            && treeGrowthBorders[step / 2][i][k] == 0 && env[i][j][k] != 0)
+                        return false;
+                }
             }
         }
         return true;
@@ -200,19 +222,23 @@ public class Chromosome {
         double currentFitness = 0;
         for (int i = 0; i < env.length; i++) {
             for (int j = 0; j < env[0].length; j++) {
-                double hkWood = i / env.length;
-                double hkLeaf = 1 - hkWood;
-                double wkLeaf = Math.abs(env[0].length / 2 - j) / (env[0].length / 2);
-                double wkWood = 1 - wkLeaf;
-                if (treeGrowthBorders[2][i][j] > 0) {
-                    maxFitness += Math.max(hkWood * wkWood, hkLeaf * wkLeaf);
-                    switch (getBlock(i, j)) {
-                        case 1:
-                            currentFitness += hkLeaf * wkLeaf;
-                            break;
-                        case 2:
-                            currentFitness += hkWood * hkWood;
-                            break;
+                for (int k = 0; k < env[0].length; k++) {
+                    double hkWood = i / env.length;
+                    double hkLeaf = 1 - hkWood;
+                    double wkLeaf = Math.abs(env[0].length / 2 - j) / (env[0].length / 2);
+                    double wkWood = 1 - wkLeaf;
+                    double zkLeaf = Math.abs(env[0].length / 2 - k) / (env[0].length / 2);
+                    double zkWood = 1 - zkLeaf;
+                    if (treeGrowthBorders[2][i][j] > 0) {
+                        maxFitness += Math.max(hkWood * wkWood * zkWood, hkLeaf * wkLeaf * zkLeaf);
+                        switch (getBlock(i, j, k)) {
+                            case 1:
+                                currentFitness += hkLeaf * wkLeaf * zkLeaf;
+                                break;
+                            case 2:
+                                currentFitness += hkWood * hkWood * zkWood;
+                                break;
+                        }
                     }
                 }
             }
