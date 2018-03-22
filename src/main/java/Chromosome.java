@@ -14,7 +14,7 @@ public class Chromosome {
 
     public static final int N_NEIGHBOURS = 4;
     public static final int left = 0;
-    public static final int nValues = 6;
+    public static final int nValues = 3;
     public static final int steps = 6;
     public static final int envSize = 7;
     public static final int colors = 3;
@@ -29,7 +29,7 @@ public class Chromosome {
     private double[] weights;
 
     public Chromosome(int[] genes, double[] weights) throws Exception {
-        length = (int) Math.pow(nValues, N_NEIGHBOURS) + nValues;
+        length = (int) Math.pow(nValues, N_NEIGHBOURS + 1) + nValues;
         right = nValues - 1;
         for (int gene :
                 genes) {
@@ -47,7 +47,7 @@ public class Chromosome {
     }
 
     public Chromosome(double[] weights) throws Exception {
-        this(getRandomGenesWithColoring((int) Math.pow(nValues, N_NEIGHBOURS), nValues - 1, nValues, colors - 1), weights);
+        this(getRandomGenesWithColoring((int) Math.pow(nValues, N_NEIGHBOURS + 1), nValues - 1, nValues, colors - 1), weights);
     }
 
     private static int[] getRandomGenesWithColoring(int length, int right, int cLength, int cRight) {
@@ -125,7 +125,7 @@ public class Chromosome {
         }
         advanced = Helper.cloneArray(nextEnv);
         env = nextEnv;
-        color();
+        //color();
     }
 
     private void color() {
@@ -138,8 +138,9 @@ public class Chromosome {
     private int getAdvancedBlockValue(int x, int y) {
         int[] neighbours = getNeighbours(x, y);
         int offset = 0;
+        offset += getBlock(x, y);
         for (int i = 0; i < N_NEIGHBOURS; i++) {
-            offset += neighbours[i] * Math.pow(nValues, i);
+            offset += neighbours[i] * Math.pow(nValues, i + 1);
         }
         return genes[offset];
     }

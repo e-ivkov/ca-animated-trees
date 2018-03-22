@@ -31,7 +31,7 @@ public class Main {
             /*getBest(1000, 0.2, 3000, new double[]{0.5,0.25,0.25}); //connectedness accent
             getBest(1000, 0.2, 3000, new double[]{0.25,0.5,0.25}); //apoptotic accent
             getBest(1000, 0.2, 3000, new double[]{0.25,0.25,0.5}); //coloring accent*/
-            getBest(1000, 0.2, 500000, new double[]{0.1, 0.6, 0.3}); //optimal
+            getBest(1000, 0.2, 500000, new double[]{0.33, 0.33, 0.33}); //optimal
             //showAnimated("chromosome.json");
             //gatherStats();
         } catch (Exception e) {
